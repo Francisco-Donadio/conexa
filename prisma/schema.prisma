@@ -25,3 +25,15 @@ enum Role {
   USER
   ADMIN
 }
+
+model Movie {
+  id           String   @id @default(uuid())
+  swapiId      String   @unique
+  title        String
+  episodeId    Int
+  director     String
+  producer     String
+  releaseDate  String
+  openingCrawl String?
+  createdAt    DateTime @default(now())
+}
