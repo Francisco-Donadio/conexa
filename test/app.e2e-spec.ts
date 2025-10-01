@@ -12,13 +12,36 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+
+    // Apply the same configuration as main.ts
+    const { ValidationPipe } = await import('@nestjs/common');
+    const { JwtAuthGuard } = await import('../src/guards/jwt-auth.guard');
+    const { RolesGuard } = await import('../src/guards/roles.guard');
+    const { Reflector } = await import('@nestjs/core');
+
+    app.useGlobalPipes(
+      new ValidationPipe({
+        transform: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
+    );
+
+    const reflector = app.get(Reflector);
+    app.useGlobalGuards(new JwtAuthGuard(reflector), new RolesGuard(reflector));
+
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/auth/signup (POST)', () => {
+    const uniqueEmail = `test-${Date.now()}@example.com`;
     return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+      .post('/auth/signup')
+      .send({
+        email: uniqueEmail,
+        password: 'password123',
+      })
+      .expect(201);
   });
 });

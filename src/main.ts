@@ -9,14 +9,43 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const reflector = app.get(Reflector);
 
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
   app.useGlobalGuards(new JwtAuthGuard(reflector), new RolesGuard(reflector));
 
   const config = new DocumentBuilder()
     .setTitle('Star Wars Movies API')
-    .setDescription('Backend NestJS API for Star Wars Movies')
+    .setDescription(
+      `
+      Backend NestJS API for Star Wars Movies Management
+      
+      ## Features
+      - 🔑 JWT Authentication & Authorization
+      - 👥 User Management (Signup/Login)
+      - 🎬 Movie CRUD Operations
+      - 🔄 SWAPI Synchronization
+      - 📄 Pagination & Search
+      - 🛡️ Role-based Access Control
+      
+      ## Authentication
+      Use the \`/auth/signup\` endpoint to create an account, then \`/auth/login\` to get a JWT token.
+      Include the token in the Authorization header: \`Bearer <your-token>\`
+      
+      ## Roles
+      - **USER**: Can view movies and get movie details
+      - **ADMIN**: Can perform all operations including CRUD and sync
+    `,
+    )
     .setVersion('1.0')
     .addBearerAuth()
+    .addTag('Auth', 'Authentication endpoints')
+    .addTag('Movies', 'Movie management endpoints')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
