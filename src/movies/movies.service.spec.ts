@@ -16,6 +16,7 @@ describe('MoviesService', () => {
       create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
+      findFirst: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
       count: jest.Mock;
@@ -28,6 +29,7 @@ describe('MoviesService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
         count: jest.fn(),
@@ -60,13 +62,220 @@ describe('MoviesService', () => {
     };
 
     const result = { ...dto, swapiId: 'manual-entry', id: 'abc123' };
+
+    // Mock no existing movies with same title or episode ID
+    db.movie.findFirst.mockResolvedValue(null);
     db.movie.create.mockResolvedValue(result);
 
     const movie = await service.create(dto);
+
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: {
+        title: {
+          mode: 'insensitive',
+          equals: 'test movie', // normalized title
+        },
+      },
+    });
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: { episodeId: dto.episodeId },
+    });
     expect(db.movie.create).toHaveBeenCalledWith({
       data: { ...dto, swapiId: 'manual-entry' },
     });
     expect(movie).toEqual(result);
+  });
+
+  it('should throw ConflictException when movie with same title exists', async () => {
+    const dto: CreateMovieDto = {
+      title: 'Existing Movie',
+      episodeId: 1,
+      director: 'Lucas',
+      producer: 'Kurtz',
+      releaseDate: '1977-05-25',
+    };
+
+    // Mock existing movie with same title
+    db.movie.findFirst.mockResolvedValueOnce({
+      id: '1',
+      title: 'Existing Movie',
+    });
+
+    await expect(service.create(dto)).rejects.toThrow(
+      'Movie with title "Existing Movie" already exists',
+    );
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: {
+        title: {
+          mode: 'insensitive',
+          equals: 'existing movie', // normalized title
+        },
+      },
+    });
+    expect(db.movie.create).not.toHaveBeenCalled();
+  });
+
+  it('should throw ConflictException when movie with same episode ID exists', async () => {
+    const dto: CreateMovieDto = {
+      title: 'New Movie',
+      episodeId: 4,
+      director: 'Lucas',
+      producer: 'Kurtz',
+      releaseDate: '1977-05-25',
+    };
+
+    // Mock no existing movie with same title, but existing with same episode ID
+    db.movie.findFirst
+      .mockResolvedValueOnce(null) // No movie with same title
+      .mockResolvedValueOnce({ id: '2', episodeId: 4 }); // Movie with same episode ID
+
+    await expect(service.create(dto)).rejects.toThrow(
+      'Movie with episode ID 4 already exists',
+    );
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: {
+        title: {
+          mode: 'insensitive',
+          equals: 'new movie', // normalized title
+        },
+      },
+    });
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: { episodeId: dto.episodeId },
+    });
+    expect(db.movie.create).not.toHaveBeenCalled();
+  });
+
+  it('should throw ConflictException when movie with same title but different case exists', async () => {
+    const dto: CreateMovieDto = {
+      title: 'a new hope', // Different case
+      episodeId: 1,
+      director: 'Lucas',
+      producer: 'Kurtz',
+      releaseDate: '1977-05-25',
+    };
+
+    // Mock existing movie with different case title
+    db.movie.findFirst.mockResolvedValueOnce({
+      id: '1',
+      title: 'A New Hope', // Existing movie with different case
+    });
+
+    await expect(service.create(dto)).rejects.toThrow(
+      'Movie with title "a new hope" already exists',
+    );
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: {
+        title: {
+          mode: 'insensitive',
+          equals: 'a new hope', // normalized title
+        },
+      },
+    });
+    expect(db.movie.create).not.toHaveBeenCalled();
+  });
+
+  it('should throw ConflictException when movie with same title but different case (uppercase) exists', async () => {
+    const dto: CreateMovieDto = {
+      title: 'A NEW HOPE', // Different case
+      episodeId: 1,
+      director: 'Lucas',
+      producer: 'Kurtz',
+      releaseDate: '1977-05-25',
+    };
+
+    // Mock existing movie with different case title
+    db.movie.findFirst.mockResolvedValueOnce({
+      id: '1',
+      title: 'A New Hope', // Existing movie with different case
+    });
+
+    await expect(service.create(dto)).rejects.toThrow(
+      'Movie with title "A NEW HOPE" already exists',
+    );
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: {
+        title: {
+          mode: 'insensitive',
+          equals: 'a new hope', // normalized title
+        },
+      },
+    });
+    expect(db.movie.create).not.toHaveBeenCalled();
+  });
+
+  it('should throw ConflictException when movie with same title but with whitespace exists', async () => {
+    const dto: CreateMovieDto = {
+      title: 'A New Hope ', // With trailing whitespace
+      episodeId: 1,
+      director: 'Lucas',
+      producer: 'Kurtz',
+      releaseDate: '1977-05-25',
+    };
+
+    // Mock existing movie with different whitespace
+    db.movie.findFirst.mockResolvedValueOnce({
+      id: '1',
+      title: 'A New Hope', // Existing movie without trailing whitespace
+    });
+
+    await expect(service.create(dto)).rejects.toThrow(
+      'Movie with title "A New Hope " already exists',
+    );
+    expect(db.movie.findFirst).toHaveBeenCalledWith({
+      where: {
+        title: {
+          mode: 'insensitive',
+          equals: 'a new hope', // normalized title (trimmed and lowercase)
+        },
+      },
+    });
+    expect(db.movie.create).not.toHaveBeenCalled();
+  });
+
+  it('should NOT create movie when title conflict exists', async () => {
+    const dto: CreateMovieDto = {
+      title: 'Existing Movie',
+      episodeId: 1,
+      director: 'Lucas',
+      producer: 'Kurtz',
+      releaseDate: '1977-05-25',
+    };
+
+    // Mock existing movie with same title
+    db.movie.findFirst.mockResolvedValueOnce({
+      id: '1',
+      title: 'Existing Movie',
+    });
+
+    await expect(service.create(dto)).rejects.toThrow(
+      'Movie with title "Existing Movie" already exists',
+    );
+
+    // Verify that create was never called
+    expect(db.movie.create).not.toHaveBeenCalled();
+  });
+
+  it('should NOT create movie when episode ID conflict exists', async () => {
+    const dto: CreateMovieDto = {
+      title: 'New Movie',
+      episodeId: 4,
+      director: 'Lucas',
+      producer: 'Kurtz',
+      releaseDate: '1977-05-25',
+    };
+
+    // Mock no existing movie with same title, but existing with same episode ID
+    db.movie.findFirst
+      .mockResolvedValueOnce(null) // No movie with same title
+      .mockResolvedValueOnce({ id: '2', episodeId: 4 }); // Movie with same episode ID
+
+    await expect(service.create(dto)).rejects.toThrow(
+      'Movie with episode ID 4 already exists',
+    );
+
+    // Verify that create was never called
+    expect(db.movie.create).not.toHaveBeenCalled();
   });
 
   it('should list movies', async () => {

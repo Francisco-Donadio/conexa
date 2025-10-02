@@ -48,6 +48,15 @@ export class MoviesController {
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Create a new movie (Admin only)' })
   @ApiBody({ type: CreateMovieDto })
+  @ApiResponse({ status: 201, description: 'Movie created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Conflict - Movie with same title or episode ID already exists',
+  })
   create(@Body() body: CreateMovieDto) {
     return this.moviesService.create(body);
   }
