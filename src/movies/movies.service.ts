@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { DatabaseService } from '../shared/db/db.service';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import axios from 'axios';
@@ -68,6 +72,33 @@ export class MoviesService {
   }
 
   async create(dto: CreateMovieDto) {
+    const normalizedTitle = dto.title.trim().toLowerCase();
+
+    const existingByTitle = await this.db.movie.findFirst({
+      where: {
+        title: {
+          mode: 'insensitive',
+          equals: normalizedTitle,
+        },
+      },
+    });
+
+    if (existingByTitle) {
+      throw new ConflictException(
+        `Movie with title "${dto.title}" already exists`,
+      );
+    }
+
+    const existingByEpisode = await this.db.movie.findFirst({
+      where: { episodeId: dto.episodeId },
+    });
+
+    if (existingByEpisode) {
+      throw new ConflictException(
+        `Movie with episode ID ${dto.episodeId} already exists`,
+      );
+    }
+
     return this.db.movie.create({
       data: {
         ...dto,
