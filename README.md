@@ -2,6 +2,20 @@
 
 A NestJS backend API for managing Star Wars movies, integrating data from the public SWAPI.
 
+## 🌐 Live Demo
+
+**API Documentation:** [https://star-wars-api-16gl.onrender.com/api#/](https://star-wars-api-16gl.onrender.com/api#/)
+
+The API is live and ready to use! You can test all endpoints directly from the Swagger documentation.
+
+## ⚡ Quick Start
+
+1. **Visit the API Documentation:** [https://star-wars-api-16gl.onrender.com/api#/](https://star-wars-api-16gl.onrender.com/api#/)
+2. **Create an account** using the `/auth/signup` endpoint
+3. **Login** to get your JWT token using `/auth/login`
+4. **Use the token** in the "Authorize" button in Swagger UI
+5. **Start exploring** the movies endpoints!
+
 ## 🚀 Features
 
 - **🔑 JWT Authentication & Authorization**
@@ -74,7 +88,13 @@ npm run start:prod
 
 ## 📚 API Documentation
 
-Once the application is running, you can access the Swagger documentation at:
+### 🌐 Production (Live)
+
+**https://star-wars-api-16gl.onrender.com/api#/**
+
+### 🏠 Local Development
+
+Once the application is running locally, you can access the Swagger documentation at:
 
 **http://localhost:3000/api**
 
