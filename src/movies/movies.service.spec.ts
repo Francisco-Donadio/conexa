@@ -347,6 +347,63 @@ describe('MoviesService', () => {
     );
   });
 
+  it('should throw ConflictException when updating movie with existing title', async () => {
+    const existingMovie = { id: '1', title: 'Original', episodeId: 1 };
+    const dto: UpdateMovieDto = { title: 'Existing Title' };
+
+    db.movie.findUnique.mockResolvedValue(existingMovie);
+    db.movie.findFirst.mockResolvedValue({ id: '2', title: 'Existing Title' });
+
+    await expect(service.update('1', dto)).rejects.toThrow(
+      'Movie with title "Existing Title" already exists',
+    );
+  });
+
+  it('should throw ConflictException when updating movie with existing episode ID', async () => {
+    const existingMovie = { id: '1', title: 'Original', episodeId: 1 };
+    const dto: UpdateMovieDto = { episodeId: 4 };
+
+    db.movie.findUnique.mockResolvedValue(existingMovie);
+    db.movie.findFirst.mockResolvedValue({ id: '2', episodeId: 4 });
+
+    await expect(service.update('1', dto)).rejects.toThrow(
+      'Movie with episode ID 4 already exists',
+    );
+  });
+
+  it('should allow updating movie with same title and episode ID', async () => {
+    const existingMovie = { id: '1', title: 'Original', episodeId: 1 };
+    const dto: UpdateMovieDto = { title: 'Original', episodeId: 1 };
+    const result = { id: '1', ...dto };
+
+    db.movie.findUnique.mockResolvedValue(existingMovie);
+    db.movie.update.mockResolvedValue(result);
+
+    const movie = await service.update('1', dto);
+    expect(movie).toEqual(result);
+    expect(db.movie.update).toHaveBeenCalledWith({
+      where: { id: '1' },
+      data: dto,
+    });
+  });
+
+  it('should allow updating movie with different fields that do not conflict', async () => {
+    const existingMovie = {
+      id: '1',
+      title: 'Original',
+      episodeId: 1,
+      director: 'Old Director',
+    };
+    const dto: UpdateMovieDto = { director: 'New Director' };
+    const result = { id: '1', ...existingMovie, ...dto };
+
+    db.movie.findUnique.mockResolvedValue(existingMovie);
+    db.movie.update.mockResolvedValue(result);
+
+    const movie = await service.update('1', dto);
+    expect(movie).toEqual(result);
+  });
+
   it('should delete a movie', async () => {
     const existingMovie = { id: '1', title: 'Original' };
     db.movie.findUnique.mockResolvedValue(existingMovie);

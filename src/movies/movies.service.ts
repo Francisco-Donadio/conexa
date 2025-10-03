@@ -184,8 +184,37 @@ export class MoviesService {
   }
 
   async update(id: string, dto: UpdateMovieDto): Promise<Movie> {
-    // Check if movie exists first
-    await this.findById(id);
+    const existingMovie = await this.findById(id);
+
+    if (dto.title && dto.title !== existingMovie.title) {
+      const normalizedTitle = dto.title.trim().toLowerCase();
+      const existingByTitle = await this.db.movie.findFirst({
+        where: {
+          title: {
+            mode: 'insensitive',
+            equals: normalizedTitle,
+          },
+        },
+      });
+
+      if (existingByTitle && existingByTitle.id !== id) {
+        throw new ConflictException(
+          `Movie with title "${dto.title}" already exists`,
+        );
+      }
+    }
+
+    if (dto.episodeId && dto.episodeId !== existingMovie.episodeId) {
+      const existingByEpisodeId = await this.db.movie.findFirst({
+        where: { episodeId: dto.episodeId },
+      });
+
+      if (existingByEpisodeId && existingByEpisodeId.id !== id) {
+        throw new ConflictException(
+          `Movie with episode ID ${dto.episodeId} already exists`,
+        );
+      }
+    }
 
     return this.db.movie.update({
       where: { id },
@@ -194,7 +223,6 @@ export class MoviesService {
   }
 
   async delete(id: string): Promise<{ message: string }> {
-    // Check if movie exists first
     await this.findById(id);
 
     await this.db.movie.delete({
